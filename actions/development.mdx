@@ -1,6 +1,6 @@
 ---
-title: Skill Development Guide
-description: How to create, test, and deploy custom skills
+title: "Skill Development Guide"
+description: "How to create, test, and deploy custom skills"
 ---
 
 # 📘 Skill Development Guide
@@ -28,40 +28,457 @@ export async function handler(input) {
     }
   }
 }
-````
-
----
-
-### Input Structure
-
-```javascript
-{
-  parameters: {},      // User-provided data (typed by your schema)
-  context: {},         // Conversation and org metadata  
-  config: {},          // Non-sensitive configuration
-  secrets: {},         // API keys and sensitive data
-  lastMessage: {},     // Most recent conversation message
-  toolCallId: ""       // Unique identifier for this execution
-}
 ```
 
 ---
 
-### Required Response Format
+## Required Response Format
 
-```json
+Your skill handler must return an object that conforms to this exact schema:
+
+```typescript
 {
-  "prompt": "string",                  // Required: Brief description of what happened
-  "knowledgeBaseReferences": [...],    // Optional: Citations and references
-  "response": {
-    "text": "string",                  // Optional: Detailed response text
-    "buttons": [...],                  // Optional: Action buttons
-    "carousel": {...}                  // Optional: Rich media carousel
+  prompt: string,                              // Required
+  knowledgeBaseReferences?: Array<{            // Optional
+    id: string,
+    title: string,
+    relevance: number
+  }>,
+  response?: {                                 // Optional
+    text?: string,
+    buttons?: Array<{
+      label: string,                           // Max 20 characters
+      payload: string                          // Max 20 characters  
+    }>,
+    carousel?: Array<{
+      title: string,
+      subtitle?: string,
+      imageUrl?: string,
+      defaultActionUrl?: string,
+      buttons?: Array<{
+        type: 'web_url' | 'postback',
+        title: string,
+        url?: string,                          // Required if type is 'web_url'
+        payload?: string                       // Required if type is 'postback'
+      }>
+    }>
   }
 }
 ```
 
----
+### Field Details
+
+#### `prompt` (Required)
+- **Type**: `string`
+- **Purpose**: Brief, human-readable summary of what the skill accomplished
+- **Usage**: Displayed in conversation logs and used by the AI for context
+- **Examples**: 
+  - `"Weather retrieved for New York"`
+  - `"Meeting scheduled for tomorrow at 2 PM"`
+  - `"Unable to process request - invalid email"`
+
+#### `knowledgeBaseReferences` (Optional)
+- **Type**: Array of reference objects
+- **Purpose**: Cite sources or related documentation that informed the response
+- **Fields**:
+  - `id`: Unique identifier for the reference
+  - `title`: Human-readable title of the referenced content
+  - `relevance`: Numerical score (0-1) indicating how relevant this reference is
+- **Example**:
+```javascript
+knowledgeBaseReferences: [
+  {
+    id: "kb-123",
+    title: "API Rate Limits Documentation", 
+    relevance: 0.95
+  },
+  {
+    id: "kb-456",
+    title: "Authentication Best Practices",
+    relevance: 0.78
+  }
+]
+```
+
+#### `response` (Optional)
+Container for rich response content that will be displayed to the user.
+
+##### `response.text` (Optional)
+- **Type**: `string`
+- **Purpose**: Main response content displayed to the user
+- **Supports**: Plain text or markdown formatting
+- **Example**:
+```javascript
+text: "✅ **Meeting Created**\n\nYour meeting 'Project Review' has been scheduled for tomorrow at 2:00 PM with john@company.com"
+```
+
+##### `response.buttons` (Optional)
+- **Type**: Array of button objects
+- **Purpose**: Interactive buttons for follow-up actions
+- **Constraints**:
+  - `label`: Maximum 20 characters
+  - `payload`: Maximum 20 characters
+- **Example**:
+```javascript
+buttons: [
+  { label: "View Details", payload: "view_123" },
+  { label: "Edit", payload: "edit_123" },
+  { label: "Cancel", payload: "cancel_123" }
+]
+```
+
+##### `response.carousel` (Optional)
+- **Type**: Array of card objects
+- **Purpose**: Rich media carousel for displaying multiple items
+- **Use Cases**: Product listings, search results, menu options
+- **Structure**:
+```javascript
+carousel: [
+  {
+    title: "Product Name",                    // Required
+    subtitle: "Brief description",            // Optional
+    imageUrl: "https://...",                  // Optional
+    defaultActionUrl: "https://...",          // Optional - clicked when card tapped
+    buttons: [                                // Optional - up to 3 recommended
+      {
+        type: "web_url",
+        title: "View Product", 
+        url: "https://store.com/product/123"
+      },
+      {
+        type: "postback",
+        title: "Add to Cart",
+        payload: "add_cart_123"
+      }
+    ]
+  }
+]
+```
+
+### Complete Examples
+
+#### Simple Text Response
+```javascript
+return {
+  prompt: "Weather retrieved successfully",
+  response: {
+    text: "Currently 72°F and sunny in San Francisco. Perfect weather for a walk!"
+  }
+}
+```
+
+#### Response with Action Buttons
+```javascript
+return {
+  prompt: "Support ticket created",
+  response: {
+    text: "✅ Ticket #12345 has been created for your billing inquiry.",
+    buttons: [
+      { label: "View Ticket", payload: "view_12345" },
+      { label: "Add Details", payload: "edit_12345" }
+    ]
+  }
+}
+```
+
+#### Rich Carousel Response
+```javascript
+return {
+  prompt: "Found 3 available meeting rooms",
+  response: {
+    text: "Here are the available rooms for your requested time:",
+    carousel: [
+      {
+        title: "Conference Room A",
+        subtitle: "Seats 8 • Projector • Whiteboard",
+        imageUrl: "https://office.com/rooms/a.jpg",
+        buttons: [
+          { type: "postback", title: "Book Room", payload: "book_room_a" }
+        ]
+      },
+      {
+        title: "Conference Room B", 
+        subtitle: "Seats 12 • Video Conf • Catering",
+        imageUrl: "https://office.com/rooms/b.jpg",
+        buttons: [
+          { type: "postback", title: "Book Room", payload: "book_room_b" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+#### Response with Knowledge Base References
+```javascript
+return {
+  prompt: "API documentation provided",
+  knowledgeBaseReferences: [
+    {
+      id: "api-auth-v2",
+      title: "Authentication API v2.0",
+      relevance: 0.92
+    }
+  ],
+  response: {
+    text: "To authenticate with our API, you'll need to include your API key in the Authorization header.",
+    buttons: [
+      { label: "View Examples", payload: "api_examples" }
+    ]
+  }
+}
+```
+
+### Validation Notes
+
+- The platform automatically validates your response against this schema
+- Invalid responses will be rejected and the user will see a generic error
+- Missing required fields will cause validation failure
+- Exceeding character limits on buttons will cause validation failure
+- Always test your responses in the skill playground before deployment
+
+### Error Response Pattern
+For error scenarios, still return a valid response object:
+
+```javascript
+// Don't throw errors - return structured responses
+return {
+  prompt: "Unable to complete action",
+  response: {
+    text: "I couldn't process your request right now. Please try again later.",
+    buttons: [
+      { label: "Retry", payload: "retry_action" },
+      { label: "Get Help", payload: "contact_support" }
+    ]
+  }
+}
+```
+
+This ensures users always receive actionable feedback even when operations fail.
+
+## Required Response Format
+
+Your skill handler must return an object that conforms to this exact schema:
+
+```typescript
+{
+  prompt: string,                              // Required
+  knowledgeBaseReferences?: Array<{            // Optional
+    id: string,
+    title: string,
+    relevance: number
+  }>,
+  response?: {                                 // Optional
+    text?: string,
+    buttons?: Array<{
+      label: string,                           // Max 20 characters
+      payload: string                          // Max 20 characters  
+    }>,
+    carousel?: Array<{
+      title: string,
+      subtitle?: string,
+      imageUrl?: string,
+      defaultActionUrl?: string,
+      buttons?: Array<{
+        type: 'web_url' | 'postback',
+        title: string,
+        url?: string,                          // Required if type is 'web_url'
+        payload?: string                       // Required if type is 'postback'
+      }>
+    }>
+  }
+}
+```
+
+### Field Details
+
+#### `prompt` (Required)
+- **Type**: `string`
+- **Purpose**: Brief, human-readable summary of what the skill accomplished
+- **Usage**: Displayed in conversation logs and used by the AI for context
+- **Examples**: 
+  - `"Weather retrieved for New York"`
+  - `"Meeting scheduled for tomorrow at 2 PM"`
+  - `"Unable to process request - invalid email"`
+
+#### `knowledgeBaseReferences` (Optional)
+- **Type**: Array of reference objects
+- **Purpose**: Cite sources or related documentation that informed the response
+- **Fields**:
+  - `id`: Unique identifier for the reference
+  - `title`: Human-readable title of the referenced content
+  - `relevance`: Numerical score (0-1) indicating how relevant this reference is
+- **Example**:
+```javascript
+knowledgeBaseReferences: [
+  {
+    id: "kb-123",
+    title: "API Rate Limits Documentation", 
+    relevance: 0.95
+  },
+  {
+    id: "kb-456",
+    title: "Authentication Best Practices",
+    relevance: 0.78
+  }
+]
+```
+
+#### `response` (Optional)
+Container for rich response content that will be displayed to the user.
+
+##### `response.text` (Optional)
+- **Type**: `string`
+- **Purpose**: Main response content displayed to the user
+- **Supports**: Plain text or markdown formatting
+- **Example**:
+```javascript
+text: "✅ **Meeting Created**\n\nYour meeting 'Project Review' has been scheduled for tomorrow at 2:00 PM with john@company.com"
+```
+
+##### `response.buttons` (Optional)
+- **Type**: Array of button objects
+- **Purpose**: Interactive buttons for follow-up actions
+- **Constraints**:
+  - `label`: Maximum 20 characters
+  - `payload`: Maximum 20 characters
+- **Example**:
+```javascript
+buttons: [
+  { label: "View Details", payload: "view_123" },
+  { label: "Edit", payload: "edit_123" },
+  { label: "Cancel", payload: "cancel_123" }
+]
+```
+
+##### `response.carousel` (Optional)
+- **Type**: Array of card objects
+- **Purpose**: Rich media carousel for displaying multiple items
+- **Use Cases**: Product listings, search results, menu options
+- **Structure**:
+```javascript
+carousel: [
+  {
+    title: "Product Name",                    // Required
+    subtitle: "Brief description",            // Optional
+    imageUrl: "https://...",                  // Optional
+    defaultActionUrl: "https://...",          // Optional - clicked when card tapped
+    buttons: [                                // Optional - up to 3 recommended
+      {
+        type: "web_url",
+        title: "View Product", 
+        url: "https://store.com/product/123"
+      },
+      {
+        type: "postback",
+        title: "Add to Cart",
+        payload: "add_cart_123"
+      }
+    ]
+  }
+]
+```
+
+### Complete Examples
+
+#### Simple Text Response
+```javascript
+return {
+  prompt: "Weather retrieved successfully",
+  response: {
+    text: "Currently 72°F and sunny in San Francisco. Perfect weather for a walk!"
+  }
+}
+```
+
+#### Response with Action Buttons
+```javascript
+return {
+  prompt: "Support ticket created",
+  response: {
+    text: "✅ Ticket #12345 has been created for your billing inquiry.",
+    buttons: [
+      { label: "View Ticket", payload: "view_12345" },
+      { label: "Add Details", payload: "edit_12345" }
+    ]
+  }
+}
+```
+
+#### Rich Carousel Response
+```javascript
+return {
+  prompt: "Found 3 available meeting rooms",
+  response: {
+    text: "Here are the available rooms for your requested time:",
+    carousel: [
+      {
+        title: "Conference Room A",
+        subtitle: "Seats 8 • Projector • Whiteboard",
+        imageUrl: "https://office.com/rooms/a.jpg",
+        buttons: [
+          { type: "postback", title: "Book Room", payload: "book_room_a" }
+        ]
+      },
+      {
+        title: "Conference Room B", 
+        subtitle: "Seats 12 • Video Conf • Catering",
+        imageUrl: "https://office.com/rooms/b.jpg",
+        buttons: [
+          { type: "postback", title: "Book Room", payload: "book_room_b" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+#### Response with Knowledge Base References
+```javascript
+return {
+  prompt: "API documentation provided",
+  knowledgeBaseReferences: [
+    {
+      id: "api-auth-v2",
+      title: "Authentication API v2.0",
+      relevance: 0.92
+    }
+  ],
+  response: {
+    text: "To authenticate with our API, you'll need to include your API key in the Authorization header.",
+    buttons: [
+      { label: "View Examples", payload: "api_examples" }
+    ]
+  }
+}
+```
+
+### Validation Notes
+
+- The platform automatically validates your response against this schema
+- Invalid responses will be rejected and the user will see a generic error
+- Missing required fields will cause validation failure
+- Exceeding character limits on buttons will cause validation failure
+- Always test your responses in the skill playground before deployment
+
+### Error Response Pattern
+For error scenarios, still return a valid response object:
+
+```javascript
+// Don't throw errors - return structured responses
+return {
+  prompt: "Unable to complete action",
+  response: {
+    text: "I couldn't process your request right now. Please try again later.",
+    buttons: [
+      { label: "Retry", payload: "retry_action" },
+      { label: "Get Help", payload: "contact_support" }
+    ]
+  }
+}
+```
+
+This ensures users always receive actionable feedback even when operations fail.
 
 ## 2. Parameter Schema
 
@@ -93,11 +510,11 @@ Define inputs using **JSON Schema**:
 
 **Schema Best Practices:**
 
-* Use lowercase property names
-* Provide clear descriptions
-* Add min/max constraints
-* Explicitly mark required vs optional
-* Keep nesting shallow
+- Use lowercase property names
+- Provide clear descriptions
+- Add min/max constraints
+- Explicitly mark required vs optional
+- Keep nesting shallow
 
 ---
 
@@ -159,10 +576,10 @@ Use the **Skill Playground** with sample data:
 
 The platform automatically validates:
 
-* ✅ JavaScript syntax & security
-* ✅ Parameter schema compliance
-* ✅ Response format correctness
-* ✅ Performance constraints
-* ✅ Best practice adherence
+- ✅ JavaScript syntax & security
+- ✅ Parameter schema compliance
+- ✅ Response format correctness
+- ✅ Performance constraints
+- ✅ Best practice adherence
 
 Fix all validation issues **before deployment**.
