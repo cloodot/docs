@@ -1,8 +1,7 @@
 ---
-title: Skills Overview
-description: Understanding the skill system and tool call architecture
+title: "Skills Overview"
+description: "Understanding the skill system and tool call architecture"
 ---
-
 
 # Skills & Tool Calls
 
@@ -21,7 +20,7 @@ graph LR
 ### Tool Call Flow
 
 1. **Tool Discovery**: AI agent analyzes available skills and their parameters
-2. **Parameter Extraction**: Agent extracts relevant data from conversation context  
+2. **Parameter Extraction**: Agent extracts relevant data from conversation context
 3. **Skill Invocation**: Platform executes the skill with provided parameters
 4. **Response Processing**: Output is validated and formatted for the user
 5. **Context Integration**: Results are integrated back into the conversation
@@ -38,16 +37,19 @@ graph LR
 ## Skill Types
 
 ### **Informational Skills**
+
 Fetch and present data without side effects.
 
 **Examples:** Weather lookup, stock prices, knowledge base search
 
-### **Action Skills** 
+### **Action Skills**
+
 Perform operations that change external state.
 
 **Examples:** Create calendar events, send emails, update CRM records
 
 ### **Interactive Skills**
+
 Present UI elements for continued user interaction.
 
 **Examples:** Multi-step forms, approval workflows, guided tutorials
@@ -64,3 +66,7 @@ When a skill executes, it receives rich context about the conversation:
 - **User Profile**: Contact information and preferences
 
 This context enables skills to provide personalized, relevant responses.
+
+<Card title="Developement" icon="sparkles" href="/actions/development">
+  
+</Card>
