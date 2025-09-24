@@ -1,0 +1,168 @@
+---
+title: Skill Development Guide
+description: How to create, test, and deploy custom skills
+---
+
+# 📘 Skill Development Guide
+
+This guide explains how to **create, test, and deploy custom skills**.
+
+---
+
+## 1. Developing Skills
+
+### Handler Function
+
+Every skill must export a `handler` function with this signature:
+
+```javascript
+export async function handler(input) {
+  const { parameters, context, config, secrets } = input
+
+  // Your skill logic here
+
+  return {
+    prompt: "Action completed successfully",
+    response: {
+      text: "Here's what happened..."
+    }
+  }
+}
+````
+
+---
+
+### Input Structure
+
+```javascript
+{
+  parameters: {},      // User-provided data (typed by your schema)
+  context: {},         // Conversation and org metadata  
+  config: {},          // Non-sensitive configuration
+  secrets: {},         // API keys and sensitive data
+  lastMessage: {},     // Most recent conversation message
+  toolCallId: ""       // Unique identifier for this execution
+}
+```
+
+---
+
+### Required Response Format
+
+```json
+{
+  "prompt": "string",                  // Required: Brief description of what happened
+  "knowledgeBaseReferences": [...],    // Optional: Citations and references
+  "response": {
+    "text": "string",                  // Optional: Detailed response text
+    "buttons": [...],                  // Optional: Action buttons
+    "carousel": {...}                  // Optional: Rich media carousel
+  }
+}
+```
+
+---
+
+## 2. Parameter Schema
+
+Define inputs using **JSON Schema**:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Meeting title"
+    },
+    "attendees": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Email addresses of attendees"
+    },
+    "duration": {
+      "type": "number",
+      "minimum": 15,
+      "maximum": 480,
+      "description": "Meeting duration in minutes"
+    }
+  },
+  "required": ["title", "duration"]
+}
+```
+
+**Schema Best Practices:**
+
+* Use lowercase property names
+* Provide clear descriptions
+* Add min/max constraints
+* Explicitly mark required vs optional
+* Keep nesting shallow
+
+---
+
+## 3. Configuration & Secrets
+
+### Configuration
+
+Non-sensitive settings stored per installation:
+
+```json
+{
+  "api_endpoint": "https://api.example.com/v1",
+  "default_owner": "sales-team",
+  "sync_frequency": 300
+}
+```
+
+### Secrets
+
+Sensitive data like API keys (accessed via `input.secrets`):
+
+```json
+{
+  "crm_api_key": "sk_live_...",
+  "webhook_secret": "whsec_...",
+  "oauth_token": "ya29...."
+}
+```
+
+⚠️ **Never log or expose secrets in responses.**
+
+---
+
+## 4. Testing & Validation
+
+### Local Testing
+
+Use the **Skill Playground** with sample data:
+
+```json
+// Parameters
+{
+  "customer_email": "test@example.com",
+  "priority": "high"
+}
+
+// Expected Response
+{
+  "prompt": "Support ticket created",
+  "response": {
+    "text": "Ticket #12345 created for test@example.com"
+  }
+}
+```
+
+---
+
+### Validation Pipeline
+
+The platform automatically validates:
+
+* ✅ JavaScript syntax & security
+* ✅ Parameter schema compliance
+* ✅ Response format correctness
+* ✅ Performance constraints
+* ✅ Best practice adherence
+
+Fix all validation issues **before deployment**.
